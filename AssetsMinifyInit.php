@@ -4,6 +4,7 @@
  */
 
 use Assetic\Factory\AssetFactory;
+use Assetic\Factory\Worker\CacheBustingWorker;
 use Assetic\AssetManager;
 use Assetic\FilterManager;
 use Assetic\Filter\JSMinFilter;
@@ -64,6 +65,7 @@ class AssetsMinifyInit {
 		$this->css = new AssetFactory( ABSPATH );
 		$this->css->setAssetManager( new AssetManager );
 		$this->css->setFilterManager( new FilterManager );
+		$this->css->addWorker( new CacheBustingWorker() );
 
 		//Defines filter for js minify
 		$this->js->getFilterManager()->set($this->jsMin, new JSMinFilter);
@@ -73,6 +75,7 @@ class AssetsMinifyInit {
 		$this->css->getFilterManager()->set($this->cssMin, new CssMinFilter);
 		$this->css->getFilterManager()->set('CssRewrite', new CssRewriteFilter);
 		$this->cssFilters []= $this->cssMin;
+		$this->cssFilters []= 'CssRewrite';
 
 		//Define assets path to save asseticized files
 		$uploadsDir = wp_upload_dir();
@@ -115,28 +118,17 @@ class AssetsMinifyInit {
 	 * Guess absolute path from file URL
 	 */
 	public function guessPath( $file_url ) {
-
 		$components = parse_url($file_url);
 
 		// Check we have at least a path
 		if( !isset($components['path']) )
 			return false;
 
-		$file_path = false;
-
-		// Script is enqueued from a plugin
-		if( strpos($file_url, WP_PLUGIN_URL) !== false )
-			$file_path = WP_PLUGIN_DIR . str_replace(WP_PLUGIN_URL, '', $file_url);
-
-		// Script is enqueued from a theme
-		if( strpos($file_url, WP_CONTENT_URL) !== false )
-			$file_path = WP_CONTENT_DIR . str_replace(WP_CONTENT_URL, '', $file_url);
-
 		// Script is enqueued from wordpress
 		if( strpos($file_url,  WPINC) !== false )
-			$file_path = untrailingslashit(ABSPATH) . $file_url;
+			$file_url = site_url( $file_url );
 
-		return $file_path;
+		return $file_url;
 	}
 
 	/**
@@ -182,7 +174,7 @@ class AssetsMinifyInit {
 			if ( empty($wp_scripts->registered[$handle]->extra) )
 				$where = 'header';
 
-			if ( empty($script_path) || !is_file($script_path) )
+			if ( empty($script_path) )
 				continue;
 
 			//Separation between css-frameworks stylesheets and .css stylesheets
@@ -224,27 +216,24 @@ class AssetsMinifyInit {
 			if ( $this->isFileExcluded($wp_styles->registered[$handle]->src) )
 				continue;
 
+			$style_path = $wp_styles->registered[$handle]->src;
 			//Removes absolute part of the path if it's specified in the src
-			$style_path = $this->guessPath($wp_styles->registered[$handle]->src);
+			$style_path = $this->guessPath( $style_path );
 
 			// Script didn't match any case (plugin, theme or wordpress locations)
-			if( $style_path == false )
+			if ( $style_path == false )
 				continue;
 
-			if ( !file_exists($style_path) )
-				continue;
-
-			//Separation between css-frameworks stylesheets and .css stylesheets
+			// //Separation between css-frameworks stylesheets and .css stylesheets
 			$ext = substr( $style_path, -5 );
 			if ( in_array( $ext, array('.sass', '.scss') ) ) {
 				$this->sass[ $handle ]       = $style_path;
-				$this->mTimesSass[ $handle ] = filemtime($this->sass[ $handle ]);
+				// $this->mTimesSass[ $handle ] = filemtime($this->sass[ $handle ]);
 			} elseif ( $ext == '.less' ) {
 				$this->less[ $handle ]       = $style_path;
-				$this->mTimesLess[ $handle ] = filemtime($this->less[ $handle ]);
+				// $this->mTimesLess[ $handle ] = filemtime($this->less[ $handle ]);
 			} else {
 				$this->styles[ $handle ]       = $style_path;
-				$this->mTimesStyles[ $handle ] = filemtime($this->styles[ $handle ]);
 			}
 
 			//Removes css from the queue so this plugin will be
@@ -261,10 +250,6 @@ class AssetsMinifyInit {
 	 * Returns header's inclusion for CSS and JS (if provided)
 	 */
 	public function headerServe() {
-
-		//Compiles CSS stylesheets
-		$this->generateCss();
-
 		//Compiles SASS stylesheets
 		$this->generateSass();
 
@@ -273,19 +258,20 @@ class AssetsMinifyInit {
 
 		//Manages the stylesheets
 		if ( !empty($this->styles) ) {
-			$mtime = md5(implode('&', $this->mTimesStyles));
+			$styles = $this->css->createAsset( $this->styles, $this->cssFilters );
+			$styles_path = str_replace( 'assetic/', '', $styles->getTargetPath() );
+			$cssDump = $styles->dump();
 
 			//Saves the asseticized stylesheets
-			if ( !$this->cache->has( "head-{$mtime}.css" ) ) {
-				$cssDump = str_replace('../', '/', $this->css->createAsset( $this->styles, $this->cssFilters )->dump() );
+			if ( !$this->cache->has( $styles_path ) )
+				$cssDump = str_replace('../', '/', $cssDump );
 				$cssDump = str_replace( 'url(/wp-', 'url(' . site_url() . '/wp-', $cssDump );
 				$cssDump = str_replace( 'url("/wp-', 'url("' . site_url() . '/wp-', $cssDump );
 				$cssDump = str_replace( "url('/wp-", "url('" . site_url() . "/wp-", $cssDump );
-				$this->cache->set( "head-{$mtime}.css", $cssDump );
-			}
+				$this->cache->set( $styles_path, $cssDump );
 
 			//Prints css inclusion in the page
-			$this->dumpCss( "head-{$mtime}.css" );
+			$this->dumpCss( $styles_path );
 		}
 
 		//Manages the scripts from CoffeeScript to be printed in the header
@@ -353,23 +339,6 @@ class AssetsMinifyInit {
 		$this->mTimesStyles['less-am-generated'] = filemtime($this->styles['less-am-generated']);
 	}
 
-	/**
-	 * Takes all the CSS stylesheets and manages their queue to asseticize them
-	 */
-	public function generateCss() {
-		if ( empty($this->styles) )
-			return false;
-
-		$mtime = md5(implode('&', $this->mTimesStyles) . implode('&', $this->styles));
-
-		//If CSS stylesheets have been updated compile and save them 
-		if ( !$this->cache->has( "styles-{$mtime}.css" ) )
-			$this->cache->set( "styles-{$mtime}.css", $this->css->createAsset( $this->styles, array( 'CssRewrite' ) )->dump() );
-
-		//Adds CSS compiled stylesheet to normal css queue
-		$this->styles       = array( 'styles-am-generated' => $this->assetsPath . "styles-{$mtime}.css");
-		$this->mTimesStyles = array( 'styles-am-generated' => filemtime($this->styles['styles-am-generated']) );
-	}
 
 	/**
 	 * Returns coffeescript inclusions for JS (if provided)
