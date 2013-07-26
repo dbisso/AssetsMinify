@@ -182,10 +182,10 @@ class AssetsMinifyInit {
 
 			if ( $ext === '.coffee' ) {
 				$this->coffee[ $where ][ $handle ] = $script_path;
-				$this->mTimesCoffee[ $where ][ $handle ]  = filemtime( $this->coffee[ $where ][ $handle ] );
+				// $this->mTimesCoffee[ $where ][ $handle ]  = filemtime( $this->coffee[ $where ][ $handle ] );
 			} else {
 				$this->scripts[ $where ][ $handle ] = $script_path;
-				$this->mTimes[ $where ][ $handle ]  = filemtime( $this->scripts[ $where ][ $handle ] );
+				// $this->mTimes[ $where ][ $handle ]  = filemtime( $this->scripts[ $where ][ $handle ] );
 			}
 
 			//Removes scripts from the queue so this plugin will be
