@@ -250,10 +250,10 @@ class AssetsMinifyInit {
 	 */
 	public function headerServe() {
 		//Compiles SASS stylesheets
-		$this->generateSass();
+		// $this->generateSass();
 
 		//Compiles LESS stylesheets
-		$this->generateLess();
+		// $this->generateLess();
 
 		//Manages the stylesheets
 		if ( !empty($this->styles) ) {
@@ -275,7 +275,7 @@ class AssetsMinifyInit {
 		}
 
 		//Manages the scripts from CoffeeScript to be printed in the header
-		$this->generateCoffee('header');
+		// $this->generateCoffee('header');
 
 		//Manages the scripts to be printed in the header
 		$this->headerServeScripts();
@@ -390,7 +390,7 @@ class AssetsMinifyInit {
 	public function footerServe() {
 
 		//Manages the scripts from CoffeeScript to be printed in the footer
-		$this->generateCoffee('footer');
+		// $this->generateCoffee('footer');
 
 		if ( empty($this->scripts['footer']) )
 			return false;
