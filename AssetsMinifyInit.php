@@ -258,16 +258,17 @@ class AssetsMinifyInit {
 		//Manages the stylesheets
 		if ( !empty($this->styles) ) {
 			$styles = $this->css->createAsset( $this->styles, $this->cssFilters );
-			$styles_path = str_replace( 'assetic/', '', $styles->getTargetPath() );
-			$cssDump = $styles->dump();
+			$styles_path = 'header-' . str_replace( 'assetic/', '', $styles->getTargetPath() );
 
 			//Saves the asseticized stylesheets
-			if ( !$this->cache->has( $styles_path ) )
-				$cssDump = str_replace('../', '/', $cssDump );
+			if ( !$this->cache->has( $styles_path ) ) {
+				$cssDump = $styles->dump();
+				$cssDump = str_replace( '../', '/', $cssDump );
 				$cssDump = str_replace( 'url(/wp-', 'url(' . site_url() . '/wp-', $cssDump );
 				$cssDump = str_replace( 'url("/wp-', 'url("' . site_url() . '/wp-', $cssDump );
-				$cssDump = str_replace( "url('/wp-", "url('" . site_url() . "/wp-", $cssDump );
+				$cssDump = str_replace( "url('/wp-", "url('" . site_url() . '/wp-', $cssDump );
 				$this->cache->set( $styles_path, $cssDump );
+			}
 
 			//Prints css inclusion in the page
 			$this->dumpCss( $styles_path );
