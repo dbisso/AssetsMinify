@@ -65,7 +65,6 @@ class AssetsMinifyInit {
 		$this->css = new AssetFactory( ABSPATH );
 		$this->css->setAssetManager( new AssetManager );
 		$this->css->setFilterManager( new FilterManager );
-		$this->css->addWorker( new CacheBustingWorker() );
 
 		//Defines filter for js minify
 		$this->js->getFilterManager()->set($this->jsMin, new JSMinFilter);
