@@ -369,15 +369,19 @@ class AssetsMinifyInit {
 		if ( empty($this->scripts['header']) )
 			return false;
 
-		$mtime = md5(implode('&', $this->mTimes['header']) . implode('&', $this->scripts['header']) );
+		$scripts = $this->js->createAsset( $this->scripts['header'], $this->jsFilters );
+		$scripts_path = 'header-' . str_replace( 'assetic/', '', $scripts->getTargetPath() );
 
-		//Saves the asseticized header scripts
-		if ( !$this->cache->has( "head-{$mtime}.js" ) )
-			$this->cache->set( "head-{$mtime}.js", $this->js->createAsset( $this->scripts['header'], $this->jsFilters )->dump() );
+		//Saves the asseticized scripts
+		if ( !$this->cache->has( $scripts_path ) ) {
+			$jsDump = $scripts->dump();
+			$jsDump = str_replace( '../', '/', $jsDump );
+			$this->cache->set( $scripts_path, $jsDump );
+		}
 
 		//Prints <script> inclusion in the page
 		$this->dumpScriptData( 'header' );
-		$this->dumpJs( "head-{$mtime}.js", false );
+		$this->dumpJs( $scripts_path, false );
 	}
 
 	/**
@@ -391,15 +395,19 @@ class AssetsMinifyInit {
 		if ( empty($this->scripts['footer']) )
 			return false;
 
-		$mtime = md5(implode('&', $this->mTimes['footer']) . implode('&', $this->scripts['footer']));
+		$scripts = $this->js->createAsset( $this->scripts['footer'], $this->jsFilters );
+		$scripts_path = 'footer-' .str_replace( 'assetic/', '', $scripts->getTargetPath() );
 
-		//Saves the asseticized footer scripts
-		if ( !$this->cache->has( "foot-{$mtime}.js" ) )
-			$this->cache->set( "foot-{$mtime}.js", $this->js->createAsset( $this->scripts['footer'], $this->jsFilters )->dump() );
+		//Saves the asseticized scripts
+		if ( !$this->cache->has( $scripts_path ) ) {
+			$jsDump = $scripts->dump();
+			$jsDump = str_replace( '../', '/', $jsDump );
+			$this->cache->set( $scripts_path, $jsDump );
+		}
 
 		//Prints <script> inclusion in the page
 		$this->dumpScriptData( 'footer' );
-		$this->dumpJs( "foot-{$mtime}.js" );
+		$this->dumpJs( $scripts_path, false );
 	}
 
 	/**
